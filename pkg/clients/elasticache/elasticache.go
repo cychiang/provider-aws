@@ -621,7 +621,7 @@ func IsAlreadyExists(err error) bool {
 }
 
 // IsSubnetGroupUpToDate checks if CacheSubnetGroupParameters are in sync with provider values
-func IsSubnetGroupUpToDate(p cachev1alpha1.CacheSubnetGroupParameters, sg elasticachetypes.CacheSubnetGroup) bool {
+func IsSubnetGroupUpToDate(p cachev1alpha1.CacheSubnetGroupParameters, sg elasticachetypes.CacheSubnetGroup, tags []elasticachetypes.Tag) bool {
 	if p.Description != aws.ToString(sg.CacheSubnetGroupDescription) {
 		return false
 	}
@@ -636,6 +636,20 @@ func IsSubnetGroupUpToDate(p cachev1alpha1.CacheSubnetGroupParameters, sg elasti
 	}
 	for _, id := range p.SubnetIDs {
 		if !exists[id] {
+			return false
+		}
+	}
+
+	if len(p.Tags) != len(tags) {
+		return false
+	}
+	pTags := make(map[string]string, len(p.Tags))
+	for _, tag := range p.Tags {
+		pTags[tag.Key] = tag.Value
+	}
+	for _, tag := range tags {
+		val, ok := pTags[aws.ToString(tag.Key)]
+		if !ok || !strings.EqualFold(val, aws.ToString(tag.Value)) {
 			return false
 		}
 	}
@@ -674,7 +688,7 @@ func GenerateCreateCacheClusterInput(p cachev1alpha1.CacheClusterParameters, id 
 		for i, tag := range p.Tags {
 			c.Tags[i] = elasticachetypes.Tag{
 				Key:   clients.String(tag.Key),
-				Value: tag.Value,
+				Value: clients.String(tag.Value),
 			}
 		}
 	}

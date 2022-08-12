@@ -40,6 +40,11 @@ type CacheSubnetGroupParameters struct {
 	// SubnetIDSelector selects a set of references that each retrieve the subnetID from the referenced Subnet
 	// +optional
 	SubnetIDSelector *xpv1.Selector `json:"subnetIdSelector,omitempty"`
+
+	// A list of tags. For more information, see Tagging Amazon ElastiCache Resources (https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/Tagging-Resources.html)
+	// in the Amazon ElastiCache User Guide.
+	// +optional
+	Tags []Tag `json:"tags,omitempty"`
 }
 
 // A CacheSubnetGroupSpec defines the desired state of a CacheSubnetGroup.
@@ -53,6 +58,9 @@ type CacheSubnetGroupExternalStatus struct {
 	// The Amazon Virtual Private Cloud identifier (VPC ID) of the cache subnet
 	// group.
 	VPCID string `json:"vpcId"`
+
+	// ARN is the Amazon Resource Name (ARN) for this ElastiCache subnet group.
+	ARN string `json:"arn,omitempty"`
 }
 
 // A CacheSubnetGroupStatus represents the observed state of a Subnet Group.

@@ -1094,6 +1094,7 @@ func TestIsSubnetGroupUpToDate(t *testing.T) {
 	type args struct {
 		subnetGroup elasticachetypes.CacheSubnetGroup
 		p           cachev1alpha1.CacheSubnetGroupParameters
+		remoteTags  []elasticachetypes.Tag
 	}
 
 	cases := map[string]struct {
@@ -1116,6 +1117,12 @@ func TestIsSubnetGroupUpToDate(t *testing.T) {
 				p: cachev1alpha1.CacheSubnetGroupParameters{
 					Description: subnetGroupDesc,
 					SubnetIDs:   []string{subnetID1, subnetID2},
+					Tags: []cachev1alpha1.Tag{
+						{Key: tagKey, Value: tagValue},
+					},
+				},
+				remoteTags: []elasticachetypes.Tag{
+					{Key: aws.String(tagKey), Value: aws.String(tagValue)},
 				},
 			},
 			want: true,
@@ -1136,6 +1143,10 @@ func TestIsSubnetGroupUpToDate(t *testing.T) {
 				p: cachev1alpha1.CacheSubnetGroupParameters{
 					Description: subnetGroupDesc,
 					SubnetIDs:   []string{subnetID1},
+					Tags:        []cachev1alpha1.Tag{},
+				},
+				remoteTags: []elasticachetypes.Tag{
+					{Key: aws.String(tagKey), Value: aws.String(tagValue)},
 				},
 			},
 			want: false,
@@ -1144,7 +1155,7 @@ func TestIsSubnetGroupUpToDate(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			got := IsSubnetGroupUpToDate(tc.args.p, tc.args.subnetGroup)
+			got := IsSubnetGroupUpToDate(tc.args.p, tc.args.subnetGroup, tc.args.remoteTags) // CacheSubnetGroup from AWS SDK v2 did not have the Tags field
 			if diff := cmp.Diff(tc.want, got); diff != "" {
 				t.Errorf("r: -want, +got:\n%s", diff)
 			}

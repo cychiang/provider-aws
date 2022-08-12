@@ -43,7 +43,7 @@ type Tag struct {
 
 	// Value of the tag.
 	// +optional
-	Value *string `json:"value,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 // CacheNode represents a node in the cluster

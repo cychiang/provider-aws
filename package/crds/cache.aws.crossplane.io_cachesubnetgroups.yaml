@@ -156,6 +156,24 @@ spec:
                     items:
                       type: string
                     type: array
+                  tags:
+                    description: A list of tags. For more information, see Tagging
+                      Amazon ElastiCache Resources (https://docs.aws.amazon.com/AmazonElastiCache/latest/red-ug/Tagging-Resources.html)
+                      in the Amazon ElastiCache User Guide.
+                    items:
+                      description: A Tag is used to tag the ElastiCache resources
+                        in AWS.
+                      properties:
+                        key:
+                          description: Key for the tag.
+                          type: string
+                        value:
+                          description: Value of the tag.
+                          type: string
+                      required:
+                      - key
+                      type: object
+                    type: array
                 required:
                 - description
                 - region
@@ -339,6 +357,10 @@ spec:
                 description: CacheSubnetGroupExternalStatus keeps the state for the
                   external resource
                 properties:
+                  arn:
+                    description: ARN is the Amazon Resource Name (ARN) for this ElastiCache
+                      subnet group.
+                    type: string
                   vpcId:
                     description: The Amazon Virtual Private Cloud identifier (VPC
                       ID) of the cache subnet group.

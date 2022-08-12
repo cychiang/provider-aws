@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-   http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -58,6 +58,14 @@ func withSpec(p v1alpha1.CacheSubnetGroupParameters) csgModifier {
 	return func(r *v1alpha1.CacheSubnetGroup) { r.Spec.ForProvider = p }
 }
 
+func withCacheSubnetGroupStatusArn(s string) csgModifier {
+	return func(r *v1alpha1.CacheSubnetGroup) { r.Status.AtProvider.ARN = s }
+}
+
+func mockListTagsForResource(ctx context.Context, input *awscache.ListTagsForResourceInput, opts []func(*awscache.Options)) (*awscache.ListTagsForResourceOutput, error) {
+	return &awscache.ListTagsForResourceOutput{TagList: []awscachetypes.Tag{}}, nil
+}
+
 func csg(m ...csgModifier) *v1alpha1.CacheSubnetGroup {
 	cr := &v1alpha1.CacheSubnetGroup{}
 	for _, f := range m {
@@ -88,6 +96,7 @@ func TestObserve(t *testing.T) {
 							CacheSubnetGroups: []awscachetypes.CacheSubnetGroup{{}},
 						}, nil
 					},
+					MockListTagsForResource: mockListTagsForResource,
 				},
 				cr: csg(),
 			},
@@ -114,11 +123,13 @@ func TestObserve(t *testing.T) {
 							}},
 						}, nil
 					},
+					MockListTagsForResource: mockListTagsForResource,
 				},
-				cr: csg(withSpec(v1alpha1.CacheSubnetGroupParameters{
-					Description: sgDescription,
-					SubnetIDs:   []string{subnetID},
-				})),
+				cr: csg(
+					withSpec(v1alpha1.CacheSubnetGroupParameters{
+						Description: sgDescription,
+						SubnetIDs:   []string{subnetID},
+					}), withCacheSubnetGroupStatusArn("arn")),
 			},
 			want: want{
 				cr: csg(withSpec(v1alpha1.CacheSubnetGroupParameters{

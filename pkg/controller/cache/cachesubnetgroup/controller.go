@@ -18,9 +18,9 @@ package cachesubnetgroup
 
 import (
 	"context"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awscache "github.com/aws/aws-sdk-go-v2/service/elasticache"
+	elasticachetypes "github.com/aws/aws-sdk-go-v2/service/elasticache/types"
 	"github.com/pkg/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,6 +47,8 @@ const (
 	errCreateSubnetGroup   = "cannot create Subnet Group"
 	errModifySubnetGroup   = "cannot modify Subnet Group"
 	errDeleteSubnetGroup   = "cannot delete Subnet Group"
+	errAddTagsFailed       = "cannot add tags to Subnet Group"
+	errListTagsFailed      = "cannot list tags for Subnet Group"
 )
 
 // SetupCacheSubnetGroup adds a controller that reconciles SubnetGroups.
@@ -110,13 +112,21 @@ func (e *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 
 	cr.Status.AtProvider = cachev1alpha1.CacheSubnetGroupExternalStatus{
 		VPCID: awsclient.StringValue(sg.VpcId),
+		ARN:   awsclient.StringValue(sg.ARN),
 	}
 
 	cr.SetConditions(xpv1.Available())
 
+	tags, err := e.client.ListTagsForResource(ctx, &awscache.ListTagsForResourceInput{
+		ResourceName: aws.String(cr.Status.AtProvider.ARN),
+	})
+	if err != nil {
+		return managed.ExternalObservation{}, awsclient.Wrap(err, errListTagsFailed)
+	}
+
 	return managed.ExternalObservation{
 		ResourceExists:   true,
-		ResourceUpToDate: elasticache.IsSubnetGroupUpToDate(cr.Spec.ForProvider, sg),
+		ResourceUpToDate: elasticache.IsSubnetGroupUpToDate(cr.Spec.ForProvider, sg, tags.TagList),
 	}, nil
 }
 
@@ -128,11 +138,19 @@ func (e *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 
 	cr.Status.SetConditions(xpv1.Creating())
 
-	_, err := e.client.CreateCacheSubnetGroup(ctx, &awscache.CreateCacheSubnetGroupInput{
+	input := &awscache.CreateCacheSubnetGroupInput{
 		CacheSubnetGroupDescription: awsclient.String(cr.Spec.ForProvider.Description),
 		CacheSubnetGroupName:        awsclient.String(meta.GetExternalName(cr)),
 		SubnetIds:                   cr.Spec.ForProvider.SubnetIDs,
-	})
+	}
+	if len(cr.Spec.ForProvider.Tags) != 0 {
+		input.Tags = make([]elasticachetypes.Tag, len(cr.Spec.ForProvider.Tags))
+		for i, val := range cr.Spec.ForProvider.Tags {
+			input.Tags[i] = elasticachetypes.Tag{Key: aws.String(val.Key), Value: aws.String(val.Value)}
+		}
+	}
+
+	_, err := e.client.CreateCacheSubnetGroup(ctx, input)
 	if err != nil {
 		return managed.ExternalCreation{}, awsclient.Wrap(resource.Ignore(elasticache.IsAlreadyExists, err), errCreateSubnetGroup)
 	}
@@ -152,7 +170,25 @@ func (e *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 		SubnetIds:                   cr.Spec.ForProvider.SubnetIDs,
 	})
 
-	return managed.ExternalUpdate{}, awsclient.Wrap(err, errModifySubnetGroup)
+	if err != nil {
+		return managed.ExternalUpdate{}, awsclient.Wrap(err, errModifySubnetGroup)
+	}
+
+	if len(cr.Spec.ForProvider.Tags) > 0 {
+		tags := make([]elasticachetypes.Tag, len(cr.Spec.ForProvider.Tags))
+		for i, t := range cr.Spec.ForProvider.Tags {
+			tags[i] = elasticachetypes.Tag{Key: aws.String(t.Key), Value: aws.String(t.Value)}
+		}
+		_, err = e.client.AddTagsToResource(ctx, &awscache.AddTagsToResourceInput{
+			ResourceName: aws.String(cr.Status.AtProvider.ARN),
+			Tags:         tags,
+		})
+		if err != nil {
+			return managed.ExternalUpdate{}, awsclient.Wrap(err, errAddTagsFailed)
+		}
+	}
+
+	return managed.ExternalUpdate{}, nil
 }
 
 func (e *external) Delete(ctx context.Context, mg resource.Managed) error {
