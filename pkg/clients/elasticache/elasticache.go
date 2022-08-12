@@ -23,7 +23,6 @@ import (
 	"strings"
 
 	"github.com/aws/smithy-go/document"
-
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/google/go-cmp/cmp"
@@ -643,15 +642,14 @@ func IsSubnetGroupUpToDate(p cachev1alpha1.CacheSubnetGroupParameters, sg elasti
 	if len(p.Tags) != len(tags) {
 		return false
 	}
-	pTags := make(map[string]string, len(p.Tags))
-	for _, tag := range p.Tags {
-		pTags[tag.Key] = tag.Value
+
+	local := []v1beta1.Tag{}
+	for _, t := range p.Tags {
+		local = append(local, v1beta1.Tag{Key: t.Key, Value: t.Value})
 	}
-	for _, tag := range tags {
-		val, ok := pTags[aws.ToString(tag.Key)]
-		if !ok || !strings.EqualFold(val, aws.ToString(tag.Value)) {
-			return false
-		}
+	add, remove := DiffTags(local, tags)
+	if len(add) > 0 || len(remove) > 0 {
+		return false
 	}
 
 	return true
