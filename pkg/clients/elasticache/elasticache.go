@@ -642,10 +642,10 @@ func IsSubnetGroupUpToDate(p cachev1alpha1.CacheSubnetGroupParameters, sg elasti
 	if len(p.Tags) != len(tags) {
 		return false
 	}
-
-	local := []v1beta1.Tag{}
-	for _, t := range p.Tags {
-		local = append(local, v1beta1.Tag{Key: t.Key, Value: t.Value})
+	local := make([]v1beta1.Tag, len(p.Tags))
+	for i, tag := range p.Tags {
+		local[i].Key = tag.Key
+		local[i].Value = tag.Value
 	}
 	add, remove := DiffTags(local, tags)
 	if len(add) > 0 || len(remove) > 0 {
